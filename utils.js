@@ -199,7 +199,16 @@ export async function getMarketPrice() {
   const contract = new ethers.Contract(address, abi, provider);
   const tx = await contract.credsMarketPrice();
 
-  return (Number(tx / 1000000000000000n) / 1000).toString();
+  try {
+    // Handle BigInt properly by converting to string first, then to number
+    const weiValue = BigInt(tx.toString());
+    const divisor = BigInt("1000000000000000");
+    const result = Number(weiValue / divisor) / 1000;
+    return result.toString();
+  } catch (error) {
+    console.error("Error formatting market price:", error);
+    return "0";
+  }
 }
 
 export async function getOrdersArray() {

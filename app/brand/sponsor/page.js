@@ -11,13 +11,14 @@ import {
 } from "../../../utils";
 import BrandCard from "../../../components/BrandCard";
 import Link from "next/link";
+
 export default function Sponsor() {
   const [SLRBalance, setSLRBalance] = useState("Fetching ...");
   const [marketPrice, setMarketPrice] = useState("Fetching");
   const [ordersArray, setOrdersArray] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   async function handleSLRBalanceUpdate() {
-    //console.log("Fetching GW token balance...");
     try {
       const updatedBalance = await getSLRTokenBalance();
       console.log("Fetched balance:", updatedBalance);
@@ -28,22 +29,16 @@ export default function Sponsor() {
   }
 
   async function updateArray() {
-    const arr = await getOrdersArray();
-    //console.log(arr);
-    setOrdersArray(arr);
-
-    //console.log(ordersArray);
-    // for (let i = 0; i < ordersArray.length; i++) {
-    //     if(ordersArray[i][9]){
-    //         const currArr = ordersArray[i];
-    //         //console.log(currArr[i]);
-    //         <Card array={currArr}></Card>
-    //     }
-    //   //console.log(ordersArray[i][0]);
-    //   for (let j = 0; j < ordersArray[i].length; j++) {
-    //     //console.log(ordersArray[i][j]);
-    //   }
-    // }
+    setLoading(true);
+    try {
+      const arr = await getOrdersArray();
+      console.log("Fetched orders:", arr);
+      setOrdersArray(arr);
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function updateMarketPrice() {
@@ -52,24 +47,35 @@ export default function Sponsor() {
       console.log("Fetched Market Price:", updatedPrice);
       setMarketPrice(updatedPrice);
     } catch (error) {
-      console.error("Failed to fetch SLR token balance:", error);
+      console.error("Failed to fetch market price:", error);
     }
   }
 
   useEffect(() => {
-    handleSLRBalanceUpdate();
-    updateArray();
-    updateMarketPrice();
-  }, [ordersArray]);
+    const fetchData = async () => {
+      await Promise.all([
+        handleSLRBalanceUpdate(),
+        updateArray(),
+        updateMarketPrice()
+      ]);
+    };
+    
+    fetchData();
+    
+    // Set up interval to refresh data every 30 seconds
+    const intervalId = setInterval(fetchData, 30000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Filter orders that are for sale and not fulfilled
+  const availableOrders = ordersArray.filter(order => order.isSale && !order.fulfilled);
+
   return (
     <div className="bg-black">
       <BrandNabvar />
-      <div className=" w-full bg-black dark:bg-grid-white/[0.2] max-h-screen  items-center justify-center">
-        {/* Radial gradient for the container to give a faded look */}
-        {/* <div className="absolute pointer-events-none inset-0 flex items-center justify-center bg-slate-400 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div> */}
-        {/* <p className="text-4xl sm:text-7xl font-bold relative z-20 bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-500 py-8">
-        Backgrounds
-      </p> */}
+      <div className="w-full bg-black dark:bg-grid-white/[0.2] min-h-screen items-center justify-center">
         <h1 className="scroll-m-20 text-5xl text-white font-extrabold text-center tracking-wide lg:text-5xl mt-10">
           Sponsor
           <mark className="bg-yellow-500 ml-3 rounded-lg px-3">
@@ -78,8 +84,8 @@ export default function Sponsor() {
           from GreenWim .
         </h1>
 
-        <div className="border-2 border-white py-5 mt-10 mx-60 rounded ">
-          <div className="text-center text-white text-3xl  font-extrabold tracking-wider">
+        <div className="border-2 border-white py-5 mt-10 mx-60 rounded">
+          <div className="text-center text-white text-3xl font-extrabold tracking-wider">
             You have Burned{" "}
             <mark className="px-5 py-2 rounded-2xl bg-sky-400">
               <span className="text-black">{SLRBalance}</span>
@@ -88,12 +94,16 @@ export default function Sponsor() {
           </div>
         </div>
 
-        <div className="flex flex-wrap content-center justify-center">
-          {ordersArray.map((data) => {
-            if (!data[9]) {
-              return <BrandCard key={data[0]} array={data}></BrandCard>;
-            }
-          })}
+        <div className="flex flex-wrap content-center justify-center mt-10">
+          {loading ? (
+            <div className="text-white text-2xl">Loading available orders...</div>
+          ) : availableOrders.length > 0 ? (
+            availableOrders.map((order) => (
+              <BrandCard key={order.orderId} array={order} />
+            ))
+          ) : (
+            <div className="text-white text-2xl">No available orders found</div>
+          )}
         </div>
       </div>
     </div>
