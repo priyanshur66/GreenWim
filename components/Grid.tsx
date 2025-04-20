@@ -9,14 +9,14 @@ import {
 } from "../utils";
 import Card from "./Card";
 import Link from "next/link";
-export const 
-GridBackground = () => {
+
+export const GridBackground = () => {
   const [SLRBalance, setSLRBalance] = useState("Fetching ...");
   const [marketPrice, setMarketPrice] = useState("Fetching");
   const [ordersArray, setOrdersArray] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   async function handleSLRBalanceUpdate() {
-    //console.log("Fetching GW token balance...");
     try {
       const updatedBalance = await getSLRTokenBalance();
       console.log("Fetched balance:", updatedBalance);
@@ -27,9 +27,16 @@ GridBackground = () => {
   }
 
   async function updateArray() {
-    const arr = await getOrdersArray();
-    //console.log(arr);
-    setOrdersArray(arr);
+    setLoading(true);
+    try {
+      const arr = await getOrdersArray();
+      console.log("Fetched orders:", arr);
+      setOrdersArray(arr);
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function updateMarketPrice() {
@@ -38,18 +45,34 @@ GridBackground = () => {
       console.log("Fetched Market Price:", updatedPrice);
       setMarketPrice(updatedPrice);
     } catch (error) {
-      console.error("Failed to fetch SLR token balance:", error);
+      console.error("Failed to fetch market price:", error);
     }
   }
 
   useEffect(() => {
-    handleSLRBalanceUpdate();
-    updateArray();
-    updateMarketPrice();
-  }, [ordersArray]);
+    const fetchData = async () => {
+      await Promise.all([
+        handleSLRBalanceUpdate(),
+        updateArray(),
+        updateMarketPrice()
+      ]);
+    };
+    
+    fetchData();
+    
+    // Set up interval to refresh data every 30 seconds
+    const intervalId = setInterval(fetchData, 30000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Filter orders that are for sale and not fulfilled
+  const availableOrders = ordersArray.filter(order => order.isSale && !order.fulfilled);
+
   return (
     <div className="min-h-screen w-full bg-black flex flex-col items-center justify-center">
-      <h1 className=" text-5xl font-extrabold text-center tracking-tight lg:text-6xl text-white">
+      <h1 className="text-5xl font-extrabold text-center tracking-tight lg:text-6xl text-white">
         Buy Some
         <mark className="bg-yellow-500 mx-2 rounded-lg px-3 mr-2">Energy Tokens</mark> 
         from GreenWim.
@@ -74,11 +97,15 @@ GridBackground = () => {
       </div>
 
       <div className="mt-10 w-full flex flex-wrap justify-center gap-4">
-        {ordersArray.map((data) => {
-          if (!data[9]) {
-            return <Card key={data[0]} array={data} />;
-          }
-        })}
+        {loading ? (
+          <div className="text-white text-2xl">Loading available orders...</div>
+        ) : availableOrders.length > 0 ? (
+          availableOrders.map((order) => (
+            <Card key={order.orderId} array={order} />
+          ))
+        ) : (
+          <div className="text-white text-2xl">No available orders found</div>
+        )}
       </div>
     </div>
   );

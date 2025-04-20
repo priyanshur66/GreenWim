@@ -1,6 +1,6 @@
 "use client";
 
-import { ethers, parseEther, parseUnits } from "ethers";
+import { ethers, parseEther, parseUnits, formatEther } from "ethers";
 import { registryAbi, registryAddress } from "./contractRefs";
 import { getSHA256Hash } from "boring-webcrypto-sha256";
 
@@ -72,50 +72,90 @@ export async function createSellOrder(
   const abi = registryAbi;
   const address = registryAddress;
   const contract = new ethers.Contract(address, abi, signer);
+  
+  // Parse ETH values properly, ensuring they're converted to correct format
+  const sellPriceInWei = ethers.parseEther(String(_sellPrice));
+  const leasePriceInWei = ethers.parseEther(String(_leasePrice));
+  
   const tx = await contract.listOrder(
-    ethers.parseEther(_sellPrice.toString()),
+    sellPriceInWei,
     _noOfSLRTokens,
-    ethers.parseEther(_leasePrice.toString()),
+    leasePriceInWei,
     _duration
   );
   console.log(tx);
 }
 
 export async function buyOrder(orderId, value) {
-  console.log(typeof value);
+  console.log("Buying order with value:", value, "ETH");
   const abi = registryAbi;
   const address = registryAddress;
   const contract = new ethers.Contract(address, abi, signer);
   const gasPrice = parseUnits("20", "gwei");
   const gasLimit = 300000;
-  const tx = await contract.createBuyOrder(orderId, {
-    value: value,
-    gasPrice: gasPrice,
-    gasLimit: gasLimit,
-  });
-  console.log(tx);
+  
+  try {
+    // Convert the ETH value to a string to ensure proper handling
+    const valueAsString = String(value);
+    
+    // Parse the ETH value to wei
+    const valueInWei = ethers.parseEther(valueAsString);
+    console.log("Value in wei:", valueInWei.toString());
+    
+    const tx = await contract.createBuyOrder(orderId, {
+      value: valueInWei,
+      gasPrice: gasPrice,
+      gasLimit: gasLimit,
+    });
+    
+    console.log("Transaction submitted:", tx);
+    return tx;
+  } catch (error) {
+    console.error("Error in buyOrder:", error);
+    throw error;
+  }
 }
 
 export async function buyOption(orderId, value) {
+  console.log("Buying option with value:", value, "ETH");
   const abi = registryAbi;
   const address = registryAddress;
   const contract = new ethers.Contract(address, abi, signer);
   const gasPrice = parseUnits("20", "gwei");
   const gasLimit = 300000;
-  const tx = await contract.takeOnOption(orderId, {
-    value: value,
-    gasPrice: gasPrice,
-    gasLimit: gasLimit,
-  });
-  console.log(tx);
+  
+  try {
+    // Convert the ETH value to a string to ensure proper handling
+    const valueAsString = String(value);
+    
+    // Parse the ETH value to wei
+    const valueInWei = ethers.parseEther(valueAsString);
+    console.log("Value in wei:", valueInWei.toString());
+    
+    const tx = await contract.takeOnOption(orderId, {
+      value: valueInWei,
+      gasPrice: gasPrice,
+      gasLimit: gasLimit,
+    });
+    
+    console.log("Transaction submitted:", tx);
+    return tx;
+  } catch (error) {
+    console.error("Error in buyOption:", error);
+    throw error;
+  }
 }
 
 export async function createLeaseOrder(_sellPrice, _noOfSLRTokens, _duration) {
   const abi = registryAbi;
   const address = registryAddress;
   const contract = new ethers.Contract(address, abi, signer);
+  
+  // Parse ETH values properly
+  const sellPriceInWei = ethers.parseEther(String(_sellPrice));
+  
   const tx = await contract.createSellOrder(
-    ethers.parseEther(_sellPrice),
+    sellPriceInWei,
     _noOfSLRTokens,
     _duration
   );
@@ -179,7 +219,27 @@ export async function getOrdersArray() {
     //console.log(i);
     const currOrder = await contract.orderArray(i);
     //console.log(currOrder);
-    ordersArray.push(currOrder);
+    
+    // Convert the returned array to a more readable object format
+    const formattedOrder = {
+      seller: currOrder[0],
+      owner: currOrder[1],
+      orderId: Number(currOrder[2]),
+      sellPrice: currOrder[3],
+      isBuy: currOrder[4],
+      isSale: currOrder[5],
+      isOption: currOrder[6],
+      optionFee: currOrder[7],
+      optionDuration: Number(currOrder[8]),
+      fulfilled: currOrder[9],
+      noOfSLRTokens: Number(currOrder[10]),
+      createdAt: Number(currOrder[11]),
+      // Use formatEther for more accurate ETH representation
+      formattedSellPrice: Number(formatEther(currOrder[3])),
+      formattedOptionFee: Number(formatEther(currOrder[7]))
+    };
+    
+    ordersArray.push(formattedOrder);
     //console.log(ordersArray);
   }
   return ordersArray;
@@ -216,17 +276,33 @@ export async function registerAsBrand() {
   console.log(tx);
 }
 export async function consumeToken(orderId, value) {
+  console.log("Consuming token with value:", value, "ETH");
   const abi = registryAbi;
   const address = registryAddress;
   const contract = new ethers.Contract(address, abi, signer);
   const gasPrice = parseUnits("20", "gwei");
   const gasLimit = 300000;
-  const tx = await contract.consumeToken(orderId, {
-    value: value,
-    gasPrice: gasPrice,
-    gasLimit: gasLimit,
-  });
-  console.log(tx);
+  
+  try {
+    // Convert the ETH value to a string to ensure proper handling
+    const valueAsString = String(value);
+    
+    // Parse the ETH value to wei
+    const valueInWei = ethers.parseEther(valueAsString);
+    console.log("Value in wei:", valueInWei.toString());
+    
+    const tx = await contract.consumeToken(orderId, {
+      value: valueInWei,
+      gasPrice: gasPrice,
+      gasLimit: gasLimit,
+    });
+    
+    console.log("Transaction submitted:", tx);
+    return tx;
+  } catch (error) {
+    console.error("Error in consumeToken:", error);
+    throw error;
+  }
 }
 
 export async function addPromotionSecret(promotionSecret) {
